@@ -1,6 +1,7 @@
 import requests
 from datetime import date
 
+# Check if a number can be converted into a float
 def is_float(num: str) -> bool:
         try:
             float(num)
@@ -10,6 +11,7 @@ def is_float(num: str) -> bool:
         except TypeError:
             return False
 
+# Class to perform the actual request and parsing of response of option chain data.
 class OptionScraper:
     def _parse_response(self, data: dict) -> dict:
         response = []

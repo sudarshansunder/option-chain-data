@@ -1,21 +1,26 @@
 from datetime import datetime, timedelta, date
-from scraper import OptionScraper
+from data_loader.scraper import OptionScraper
+from collections import defaultdict
 import json
+from data_loader.expiry_dates import fetch_expiry_dates
 
 def generate_expiry_dates(start_date: date, end_date: date = None):
-        current = start_date
-        expiry_dates = [start_date]
+        fetched_expiry_dates = fetch_expiry_dates()
+        current_idx = fetched_expiry_dates.index(start_date)
+        expiry_dates = []
         # Final expiry date for every month
-        final_expiry_dates = {}
-
-        final_expiry_dates[current.month] = current
+        final_expiry_dates = defaultdict(dict)
 
         if not end_date:
-            end_date = date(start_date.year + 1, 1, 1)
+            end_date = date(start_date.year + 1, 2, 1)
 
-        while (current := current + timedelta(weeks=1)) < end_date:
+        while current_idx < len(fetched_expiry_dates):
+            current = fetched_expiry_dates[current_idx]
+            if current >= end_date:
+                break
             expiry_dates.append(current)
-            final_expiry_dates[current.month] = current
+            final_expiry_dates[current.year][current.month] = current
+            current_idx += 1
 
         return expiry_dates, final_expiry_dates
 
@@ -36,7 +41,7 @@ class OptionDataLoader:
 
     def _get_current_expiry_date(self, current_date: date, prev_expiry_date: date = None) -> date:
         if prev_expiry_date:
-            if current_date >= prev_expiry_date:
+            if current_date > prev_expiry_date:
                 current_expiry_idx = self.expiry_dates.index(prev_expiry_date)
                 return self.expiry_dates[current_expiry_idx+1] if current_expiry_idx + 1 < len(self.expiry_dates) else None
             else:
@@ -47,7 +52,7 @@ class OptionDataLoader:
     def _load_data_for_date(self, target_date: date, current_expiry_date: date):
         # return self.scraper.get_options_data(self.stock_name, target_date, expiry_date)
         next_expiry_date = self.expiry_dates[self.expiry_dates.index(current_expiry_date) + 1]
-        month_end_expiry_date = self.final_expiry_dates[next_expiry_date.month]
+        month_end_expiry_date = self.final_expiry_dates[next_expiry_date.year][next_expiry_date.month]
 
         options_data = {
             format_date(current_expiry_date): self.scraper.get_options_data(self.stock_name, target_date, current_expiry_date),
